@@ -2,6 +2,10 @@ const handContainer = document.getElementById("hand-area");
 const nextButton = document.getElementById("nextButton");
 const shantenDisplay = document.getElementById("shantenDisplay");
 const shantenError = document.getElementById("shantenError");
+const answerButtonsContainer = document.getElementById("answerButtons");
+const resultDisplay = document.getElementById("resultDisplay");
+
+const ANSWER_VALUES = [0, 1, 2, 3, 4, 5, 6];
 
 const tileFileNames = [
   "1m.png", "2m.png", "3m.png", "4m.png", "5m.png", "6m.png", "7m.png", "8m.png", "9m.png",
@@ -11,12 +15,14 @@ const tileFileNames = [
 ];
 
 const tileToIndexMap = new Map(tileFileNames.map((fileName, index) => [fileName, index]));
-
 const wall = tileFileNames.flatMap((fileName) => [fileName, fileName, fileName, fileName]);
 
 let currentHand = [];
 let draggingIndex = null;
 let draggingPointerId = null;
+let answered = false;
+let selectedAnswer = null;
+let correctShanten = null;
 
 function tileToIndex(tile) {
   if (!tileToIndexMap.has(tile)) {
@@ -149,33 +155,54 @@ function calculateShanten(tiles) {
   return Math.min(normal, chiitoi, kokushi);
 }
 
-function formatShantenForDisplay(shanten) {
-  return `現在のシャンテン数：${shanten}`;
-}
-
-function updateShantenDisplay() {
-  try {
-    const shanten = calculateShanten(currentHand);
-    shantenDisplay.textContent = formatShantenForDisplay(shanten);
-    shantenError.textContent = "";
-  } catch (error) {
+function updateDisplay() {
+  if (!answered || correctShanten === null) {
     shantenDisplay.textContent = "現在のシャンテン数：-";
-    shantenError.textContent = `シャンテン判定エラー: ${error.message}`;
+    resultDisplay.textContent = "";
+    return;
   }
+
+  shantenDisplay.textContent = `正解：${correctShanten}シャンテン`;
+  resultDisplay.textContent = selectedAnswer === correctShanten ? "正解" : "不正解";
 }
 
-function drawHand() {
+function renderAnswerButtons() {
+  answerButtonsContainer.innerHTML = "";
+
+  ANSWER_VALUES.forEach((value) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "answer-button";
+    button.textContent = String(value);
+    button.disabled = answered;
+
+    if (selectedAnswer === value) {
+      button.classList.add("is-selected");
+      if (answered && value !== correctShanten) {
+        button.classList.add("is-wrong");
+      }
+    }
+
+    if (answered && correctShanten === value) {
+      button.classList.add("is-correct");
+    }
+
+    button.addEventListener("click", () => handleAnswer(value));
+    answerButtonsContainer.appendChild(button);
+  });
+}
+
+function drawInitialHand() {
   const pool = [...wall];
-  currentHand = [];
+  const hand = [];
 
   for (let i = 0; i < 13; i += 1) {
     const randomIndex = Math.floor(Math.random() * pool.length);
-    currentHand.push(pool[randomIndex]);
+    hand.push(pool[randomIndex]);
     pool.splice(randomIndex, 1);
   }
 
-  renderHand();
-  updateShantenDisplay();
+  return hand;
 }
 
 function renderHand() {
@@ -198,7 +225,41 @@ function renderHand() {
   });
 }
 
+function render() {
+  renderHand();
+  renderAnswerButtons();
+  updateDisplay();
+  shantenError.textContent = "";
+}
+
+function handleAnswer(answer) {
+  if (answered) return;
+
+  try {
+    correctShanten = calculateShanten(currentHand);
+    selectedAnswer = answer;
+    answered = true;
+    render();
+  } catch (error) {
+    shantenError.textContent = `シャンテン判定エラー: ${error.message}`;
+  }
+}
+
+function nextQuestion() {
+  currentHand = drawInitialHand();
+  answered = false;
+  selectedAnswer = null;
+  correctShanten = null;
+  draggingIndex = null;
+  draggingPointerId = null;
+  render();
+}
+
 function onTilePointerDown(event) {
+  if (answered) {
+    return;
+  }
+
   const tile = event.target.closest(".tile");
   if (!tile || !handContainer.contains(tile)) {
     return;
@@ -212,14 +273,12 @@ function onTilePointerDown(event) {
   }
 
   draggingPointerId = event.pointerId;
-
   handContainer.setPointerCapture(event.pointerId);
-
   renderHand();
 }
 
 function onTilePointerMove(event) {
-  if (event.pointerId !== draggingPointerId || draggingIndex === null) {
+  if (answered || event.pointerId !== draggingPointerId || draggingIndex === null) {
     return;
   }
 
@@ -256,14 +315,12 @@ function onTilePointerEnd(event) {
   draggingIndex = null;
   draggingPointerId = null;
   renderHand();
-  updateShantenDisplay();
 }
 
 handContainer.addEventListener("pointerdown", onTilePointerDown);
 handContainer.addEventListener("pointermove", onTilePointerMove);
 handContainer.addEventListener("pointerup", onTilePointerEnd);
 handContainer.addEventListener("pointercancel", onTilePointerEnd);
+nextButton.addEventListener("click", nextQuestion);
 
-nextButton.addEventListener("click", drawHand);
-
-drawHand();
+nextQuestion();
