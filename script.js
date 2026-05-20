@@ -1,4 +1,4 @@
-const handContainer = document.getElementById("hand");
+const handContainer = document.getElementById("hand-area");
 const nextButton = document.getElementById("nextButton");
 
 const tileFileNames = [
@@ -43,20 +43,26 @@ function renderHand() {
       img.classList.add("tile-dragging");
     }
 
-    img.addEventListener("pointerdown", onTilePointerDown);
     handContainer.appendChild(img);
   });
 }
 
 function onTilePointerDown(event) {
-  const tile = event.currentTarget;
+  const tile = event.target.closest(".tile");
+  if (!tile || !handContainer.contains(tile)) {
+    return;
+  }
+
+  event.preventDefault();
   draggingIndex = Number(tile.dataset.index);
+  if (Number.isNaN(draggingIndex)) {
+    draggingIndex = null;
+    return;
+  }
+
   draggingPointerId = event.pointerId;
 
-  tile.setPointerCapture(event.pointerId);
-  tile.addEventListener("pointermove", onTilePointerMove);
-  tile.addEventListener("pointerup", onTilePointerEnd);
-  tile.addEventListener("pointercancel", onTilePointerEnd);
+  handContainer.setPointerCapture(event.pointerId);
 
   renderHand();
 }
@@ -65,6 +71,8 @@ function onTilePointerMove(event) {
   if (event.pointerId !== draggingPointerId || draggingIndex === null) {
     return;
   }
+
+  event.preventDefault();
 
   const target = document.elementFromPoint(event.clientX, event.clientY);
   const targetTile = target?.closest(".tile");
@@ -90,10 +98,19 @@ function onTilePointerEnd(event) {
     return;
   }
 
+  if (handContainer.hasPointerCapture(event.pointerId)) {
+    handContainer.releasePointerCapture(event.pointerId);
+  }
+
   draggingIndex = null;
   draggingPointerId = null;
   renderHand();
 }
+
+handContainer.addEventListener("pointerdown", onTilePointerDown);
+handContainer.addEventListener("pointermove", onTilePointerMove);
+handContainer.addEventListener("pointerup", onTilePointerEnd);
+handContainer.addEventListener("pointercancel", onTilePointerEnd);
 
 nextButton.addEventListener("click", drawHand);
 
