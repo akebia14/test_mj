@@ -40,8 +40,62 @@ body {
 }
 
 .title {
-  margin: 0 0 12px;
+  margin: 0 0 10px;
   font-size: 1.1rem;
+}
+
+.answer-area {
+  width: 100%;
+  margin-bottom: 8px;
+}
+
+.answer-label {
+  margin: 0 0 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  opacity: 0.9;
+}
+
+.answer-buttons {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.answer-button {
+  border: none;
+  border-radius: 10px;
+  min-height: 38px;
+  font-size: 0.98rem;
+  font-weight: 700;
+  background: #f4f7f6;
+  color: #12432b;
+}
+
+.answer-button.is-selected {
+  outline: 2px solid #6db5ff;
+  outline-offset: -2px;
+}
+
+.answer-button.is-correct {
+  background: #d0ffde;
+  color: #0f5a24;
+}
+
+.answer-button.is-wrong {
+  background: #ffd6d6;
+  color: #761919;
+}
+
+.answer-button:disabled {
+  opacity: 0.82;
+}
+
+.result-display {
+  margin: 0 0 6px;
+  min-height: 1.2em;
+  font-size: 1rem;
+  font-weight: 700;
 }
 
 .hand {
@@ -51,7 +105,7 @@ body {
   grid-template-columns: repeat(13, minmax(0, 1fr));
   gap: 4px;
   align-items: end;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
   touch-action: none;
 }
 
@@ -75,7 +129,7 @@ body {
 }
 
 .shanten-display {
-  margin: 0 0 8px;
+  margin: 0 0 6px;
   font-size: 1rem;
   font-weight: 700;
 }
