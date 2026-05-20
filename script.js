@@ -1,5 +1,7 @@
 const handContainer = document.getElementById("hand-area");
 const nextButton = document.getElementById("nextButton");
+const shantenDisplay = document.getElementById("shantenDisplay");
+const shantenError = document.getElementById("shantenError");
 
 const tileFileNames = [
   "1m.png", "2m.png", "3m.png", "4m.png", "5m.png", "6m.png", "7m.png", "8m.png", "9m.png",
@@ -8,11 +10,159 @@ const tileFileNames = [
   "東.png", "南.png", "西.png", "北.png", "白.png", "發.png", "中.png",
 ];
 
+const tileToIndexMap = new Map(tileFileNames.map((fileName, index) => [fileName, index]));
+
 const wall = tileFileNames.flatMap((fileName) => [fileName, fileName, fileName, fileName]);
 
 let currentHand = [];
 let draggingIndex = null;
 let draggingPointerId = null;
+
+function tileToIndex(tile) {
+  if (!tileToIndexMap.has(tile)) {
+    throw new Error(`未対応の牌です: ${tile}`);
+  }
+  return tileToIndexMap.get(tile);
+}
+
+function tilesToCounts(tiles) {
+  const counts = Array(34).fill(0);
+  tiles.forEach((tile) => {
+    const index = tileToIndex(tile);
+    counts[index] += 1;
+  });
+  return counts;
+}
+
+function calculateNormalShanten(counts) {
+  let minShanten = 8;
+
+  function dfs(start, melds, pairs, taatsu) {
+    let i = start;
+    while (i < 34 && localCounts[i] === 0) {
+      i += 1;
+    }
+
+    if (i === 34) {
+      const cappedTaatsu = Math.min(taatsu, 4 - melds);
+      const shanten = 8 - melds * 2 - cappedTaatsu - pairs;
+      if (shanten < minShanten) {
+        minShanten = shanten;
+      }
+      return;
+    }
+
+    if (melds > 4 || pairs > 1) {
+      return;
+    }
+
+    if (localCounts[i] >= 3) {
+      localCounts[i] -= 3;
+      dfs(i, melds + 1, pairs, taatsu);
+      localCounts[i] += 3;
+    }
+
+    if (i < 27 && i % 9 <= 6 && localCounts[i + 1] > 0 && localCounts[i + 2] > 0) {
+      localCounts[i] -= 1;
+      localCounts[i + 1] -= 1;
+      localCounts[i + 2] -= 1;
+      dfs(i, melds + 1, pairs, taatsu);
+      localCounts[i] += 1;
+      localCounts[i + 1] += 1;
+      localCounts[i + 2] += 1;
+    }
+
+    if (pairs === 0 && localCounts[i] >= 2) {
+      localCounts[i] -= 2;
+      dfs(i, melds, pairs + 1, taatsu);
+      localCounts[i] += 2;
+    }
+
+    if (localCounts[i] >= 2) {
+      localCounts[i] -= 2;
+      dfs(i, melds, pairs, taatsu + 1);
+      localCounts[i] += 2;
+    }
+
+    if (i < 27 && i % 9 <= 7 && localCounts[i + 1] > 0) {
+      localCounts[i] -= 1;
+      localCounts[i + 1] -= 1;
+      dfs(i, melds, pairs, taatsu + 1);
+      localCounts[i] += 1;
+      localCounts[i + 1] += 1;
+    }
+
+    if (i < 27 && i % 9 <= 6 && localCounts[i + 2] > 0) {
+      localCounts[i] -= 1;
+      localCounts[i + 2] -= 1;
+      dfs(i, melds, pairs, taatsu + 1);
+      localCounts[i] += 1;
+      localCounts[i + 2] += 1;
+    }
+
+    dfs(i + 1, melds, pairs, taatsu);
+  }
+
+  const localCounts = counts.slice();
+  dfs(0, 0, 0, 0);
+  return minShanten;
+}
+
+function calculateChiitoiShanten(counts) {
+  let pairCount = 0;
+  let uniqueCount = 0;
+
+  counts.forEach((count) => {
+    if (count >= 1) {
+      uniqueCount += 1;
+    }
+    if (count >= 2) {
+      pairCount += 1;
+    }
+  });
+
+  return 6 - pairCount + Math.max(0, 7 - uniqueCount);
+}
+
+function calculateKokushiShanten(counts) {
+  const kokushiIndices = [0, 8, 9, 17, 18, 26, 27, 28, 29, 30, 31, 32, 33];
+  let uniqueTerminals = 0;
+  let hasPair = false;
+
+  kokushiIndices.forEach((index) => {
+    if (counts[index] >= 1) {
+      uniqueTerminals += 1;
+    }
+    if (counts[index] >= 2) {
+      hasPair = true;
+    }
+  });
+
+  return 13 - uniqueTerminals - (hasPair ? 1 : 0);
+}
+
+function calculateShanten(tiles) {
+  const counts = tilesToCounts(tiles);
+  const normal = calculateNormalShanten(counts);
+  const chiitoi = calculateChiitoiShanten(counts);
+  const kokushi = calculateKokushiShanten(counts);
+  return Math.min(normal, chiitoi, kokushi);
+}
+
+function formatShantenForDisplay(shanten) {
+  return `現在のシャンテン数：${shanten}`;
+}
+
+function updateShantenDisplay() {
+  try {
+    const shanten = calculateShanten(currentHand);
+    shantenDisplay.textContent = formatShantenForDisplay(shanten);
+    shantenError.textContent = "";
+  } catch (error) {
+    shantenDisplay.textContent = "現在のシャンテン数：-";
+    shantenError.textContent = `シャンテン判定エラー: ${error.message}`;
+  }
+}
 
 function drawHand() {
   const pool = [...wall];
@@ -25,6 +175,7 @@ function drawHand() {
   }
 
   renderHand();
+  updateShantenDisplay();
 }
 
 function renderHand() {
@@ -105,6 +256,7 @@ function onTilePointerEnd(event) {
   draggingIndex = null;
   draggingPointerId = null;
   renderHand();
+  updateShantenDisplay();
 }
 
 handContainer.addEventListener("pointerdown", onTilePointerDown);

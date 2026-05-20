@@ -74,6 +74,19 @@ body {
   z-index: 10;
 }
 
+.shanten-display {
+  margin: 0 0 8px;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.shanten-error {
+  margin: 0 0 10px;
+  min-height: 1.2em;
+  color: #ffe7a3;
+  font-size: 0.9rem;
+}
+
 .next-button {
   border: none;
   border-radius: 999px;
